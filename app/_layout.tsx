@@ -1,13 +1,29 @@
-// src/app/_layout.tsx
-import { Slot } from 'expo-router';
-import { AuthProvider } from '../hooks/useAuth';
+import React, { useEffect } from 'react';
+import { Slot, useRouter, useSegments } from 'expo-router';
+import { AuthProvider, useAuth } from '../hooks/useAuth';
 import { CartProvider } from '../hooks/useCart';
-import { View, ActivityIndicator } from 'react-native';
-import { useAuth } from '../hooks/useAuth';
+import { ActivityIndicator, View } from 'react-native';
 
-// Componente que verifica o estado de loading
 function Gate() {
-  const { loading } = useAuth();
+  const { user, loading } = useAuth();
+  const router = useRouter();
+  const segments = useSegments();
+
+  useEffect(() => {
+    if (!loading) {
+      if (!user) {
+        // Se não estiver logado, redireciona para login
+        if (segments[1] !== 'auth') {
+          router.replace('/(auth)/login');
+        }
+      } else {
+        // Se estiver logado, redireciona para produtos
+        if (segments[1] !== 'user') {
+          router.replace('/(user)/products');
+        }
+      }
+    }
+  }, [user, loading, segments]);
 
   if (loading) {
     return (
@@ -20,7 +36,6 @@ function Gate() {
   return <Slot />;
 }
 
-// Layout principal
 export default function RootLayout() {
   return (
     <AuthProvider>
