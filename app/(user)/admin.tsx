@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, StyleSheet, ActivityIndicator, Image } from 'react-native';
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { collection, getDocs, orderBy, query } from 'firebase/firestore';
 import { db } from '../../services/firebaseConfig';
 import { useAuth } from '../../hooks/useAuth';
 
 type Pedido = {
   id: string;
+  userId: string;
   criadoEm: any;
   total: number;
   items: {
@@ -17,19 +18,21 @@ type Pedido = {
   }[];
 };
 
-export default function Orders() {
+export default function Admin() {
   const { user } = useAuth();
   const [orders, setOrders] = useState<Pedido[]>([]);
   const [loading, setLoading] = useState(true);
 
-  async function fetchOrders() {
+  useEffect(() => {
+    if (user?.role === 'admin') {
+      fetchAllOrders();
+    }
+  }, [user]);
+
+  async function fetchAllOrders() {
     setLoading(true);
     try {
-      const q = query(
-        collection(db, 'orders'),
-        where('userId', '==', user?.uid),
-        orderBy('criadoEm', 'desc')
-      );
+      const q = query(collection(db, 'orders'), orderBy('criadoEm', 'desc'));
       const snap = await getDocs(q);
       const list: Pedido[] = [];
       snap.forEach(doc => list.push({ id: doc.id, ...doc.data() } as Pedido));
@@ -40,13 +43,18 @@ export default function Orders() {
     setLoading(false);
   }
 
-  useEffect(() => {
-    fetchOrders();
-  }, []);
+  if (user?.role !== 'admin') {
+    return (
+      <View style={styles.ctn}>
+        <Text style={styles.ttl}>Acesso restrito</Text>
+        <Text>Somente administradores podem acessar esta tela.</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.ctn}>
-      <Text style={styles.ttl}>Meus Pedidos</Text>
+      <Text style={styles.ttl}>Pedidos Recebidos</Text>
       {loading ? (
         <ActivityIndicator size="large" color="#007AFF" />
       ) : (
@@ -60,6 +68,7 @@ export default function Orders() {
                   ? item.criadoEm.toDate().toLocaleString()
                   : ''}
               </Text>
+              <Text style={styles.userId}>Morador: {item.userId}</Text>
               {item.items.map((prod, idx) => (
                 <View key={idx} style={styles.prodRow}>
                   {prod.imageUrl && (
@@ -106,6 +115,7 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   data: { color: '#888', fontSize: 12, marginBottom: 8 },
+  userId: { color: '#333', fontSize: 13, marginBottom: 4 },
   prodRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   prodImage: { width: 40, height: 40, borderRadius: 6, marginRight: 10 },
   prodName: { fontWeight: 'bold', fontSize: 15 },
